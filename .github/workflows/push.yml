@@ -2,54 +2,54 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  
-  NODE_ENV: test
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      NODE_ENV: test
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
+
     services:
       db:
-        image: postgres:16
+        image: postgres:15
+        ports:
+          - 5432:5432
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        ports:
-          - 5432:5432
+          POSTGRES_DB: devops_test
         options: >-
-          --health-cmd "pg_isready -U postgres -d test_db"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Node.js
+      - name: Setup Node.js 24
         uses: actions/setup-node@v3
         with:
-          node-version: 20   
+          node-version: '24'
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Wait for DB
-        run: |
-          for i in {1..10}; do
-            pg_isready -h localhost -U postgres && break
-            echo "Waiting for Postgres..."
-            sleep 3
-          done
+      - name: Start Docker services
+        run: docker-compose up -d db
 
       - name: Run tests
-        run: npm test
+        run: docker-compose run --rm app make test
