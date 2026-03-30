@@ -8,36 +8,33 @@ on:
     branches:
       - main
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-        continue-on-error: true
+        uses: actions/checkout@v3.12.0  
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v3.18.0
         with:
-          node-version: '24'
-        continue-on-error: true
+          node-version: '20'  
+          cache: 'npm'
 
-      - name: Cache node modules
-        uses: actions/cache@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3.5.0
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-        continue-on-error: true   
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Start Docker services
-        run: docker-compose up -d db
-
-      - name: Run tests
-        run: docker-compose run --rm app make test
+      - name: Run CI (tests + migrations)
+        run: |
+          docker-compose run --rm app make test
