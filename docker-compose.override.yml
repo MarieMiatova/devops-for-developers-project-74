@@ -9,8 +9,6 @@ services:
     command: make dev        
     volumes:
       - ./app:/app           
-    env_file:
-      - .env
     depends_on:
       db:
         condition: service_healthy  
